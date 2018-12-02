@@ -15,4 +15,3 @@ function [ confusion_matrix, error ] = obtain_confusion_matrix(clauSample, clauT
     end
     error = error/mida;
 end
-

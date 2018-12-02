@@ -11,3 +11,4 @@ caracteristiquesTest = obtain_text_characteristics(Itest);
 clauTest = nearest_neighbour_of_text(clauSample, caracteristiquesSample, caracteristiquesTest);
 % Creem la matriu de confusio, obtenim l'error de test i les confusions
 [matriu_confusio, error] = obtain_confusion_matrix(clauSample, clauTest);
+error % printem l'error

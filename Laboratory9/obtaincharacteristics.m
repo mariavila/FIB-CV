@@ -1,21 +1,16 @@
 function [ carac ] = obtaincharacteristics( I, Properties )
-%obtaincharacteristics obtains the characteristics of an image
+    %obtaincharacteristics obtains the characteristics of an image
     Perimetre = Properties.Perimeter;
     BoundingBoxLletra = Properties.BoundingBox; 
     Width = BoundingBoxLletra(3);
     Heigth = BoundingBoxLletra(4);
     Area = Properties.Area;
-        
-    %Numero de forats de la lletra
-    %obtenim el nombre de components connexes blanques de la imatge
-    %original
+    %Numero de forats de la lletra:
     CC = bwconncomp(not(I), 8);
-    %treiem el fons com a forat
+    % Treiem el fons com a forat
     car_num_forats = CC.NumObjects -1; 
-    
     %Rectangularitat
     car_rectangularitat = Area/(Width*Heigth);
-    
     %Poligon mes llarg en relacio al perimetre
     %Angle del poligon mes llarg
     % simplified polygonal boundary of a BW image
@@ -27,10 +22,6 @@ function [ carac ] = obtaincharacteristics( I, Properties )
     k = boundary([F,C],0.90); % loose factor = 0.15 
     % reduce polygonal
     [RF,RC] = reducem(F(k),C(k),5); % tolerance = 5 degrees
-    %plot boundary
-    imshow(128*uint8(I));hold
-    plot(RC,RF,'LineWidth',1);figure;
-    
     [quantitat_poligons, aux] = size(RF);
     poligon_mes_llarg = 0;
     angle_poligon_llarg =0;
@@ -44,20 +35,14 @@ function [ carac ] = obtaincharacteristics( I, Properties )
     end
     car_largest_pol = poligon_mes_llarg / Perimetre;
     car_angle_largest_pol = angle_poligon_llarg;
-    
     %Aspect ratio de la BB
     car_aspect_BB = Width / Heigth;
-    
     %Compacitat
     car_compacitat = Perimetre^2/Area;
-    
     %Centroide x
-    car_centroide_x = Properties.Centroid(1)/Width;
-    
+    car_centroide_x = Properties.Centroid(1)/Width;   
     %Centroide y
-    car_centroide_y = Properties.Centroid(2)/Heigth;
-    
+    car_centroide_y = Properties.Centroid(2)/Heigth    
     %Obtenim el resultat
     carac = [car_num_forats car_rectangularitat car_largest_pol car_angle_largest_pol car_aspect_BB car_compacitat car_centroide_x car_centroide_y];
 end
-

@@ -18,4 +18,3 @@ function [ clauTest ] = nearest_neighbour_of_text( clauSample, caracteristiquesS
        clauTest(lletra_test) = clauSample(nearest_neighbour);
     end
 end
-
