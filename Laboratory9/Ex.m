@@ -1,5 +1,7 @@
+close all;
 Imostra = rgb2gray(imread('Joc_de_caracters.jpg'));
 Itest = rgb2gray(imread('Joc_de_caracters_deformats.jpg'));
+% Itest = Imostra;
 Itest2 = rgb2gray(imread('Joc_de_caracters_deformats II.png'));
 
 %Creem les llistes de caracteristiques
@@ -14,11 +16,12 @@ clauTest = nearest_neighbour_of_text(clauSample, caracteristiquesSample, caracte
 
 %Testing (amb el joc de caracteristiques deformat)
 
-%Crear la matriu de confusio (idealment uns a tota la diagonal)
-matriu_confusio = obtain_confusion_matrix(clauSample, clauTest);
-%Definirem l'error com la suma de tot el que no esta a la diagonal
+%Crear la matriu de confusio (idealment uns a tota la diagonal) i obtenim
+%error (com la suma de tot el que no esta a la diagonal)
+[matriu_confusio, error] = obtain_confusion_matrix(clauSample, clauTest);
+error
 
 %Calcular la caracteristica mes debil (la que al treurela els resultats
 %varien menys)-> IMP!!!!!!!
 
-%Poligon mes llarg en relacio al perimetre
+

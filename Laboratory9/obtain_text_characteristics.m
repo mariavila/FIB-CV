@@ -2,18 +2,19 @@ function [ caracteristiques ] = obtain_text_characteristics( I )
     %binaritzem imatge
     I = I<180;
     %Obtenim les BB de les lletres
-    LlistaLletres = regionprops(I);
+    LlistaLletres = regionprops(I, 'Perimeter', 'Area', 'BoundingBox', 'Centroid');
     caracteristiques = [];
     for i = 1:30
         %obtenim la BB de la lletra
-        BoundingBoxLletra = LlistaLletres(i).BoundingBox;
+        BoundingBoxLletra = LlistaLletres(i).BoundingBox;  
         %augmentem els marcs
         BoundingBoxLletra = BoundingBoxLletra + [-1 -1 1 1];
         %obtenim la imatge de la lletra
         %imcrop(Imatge, [xmin ymin width height]);
         Illetra = imcrop(I, BoundingBoxLletra);
+        
         %calcular 8 caracteristiques de forma o area del joc de caracteristiques
-        carac = obtaincharacteristics(Illetra, LlistaLletres(i).Area);
+        carac = obtaincharacteristics(Illetra, LlistaLletres(i));
         %afegim el valor a la variable global
         caracteristiques = [caracteristiques; carac];
     end
