@@ -1,5 +1,5 @@
 function [ confusion_matrix, error ] = obtain_confusion_matrix(clauSample, clauTest)
-    [mida, aux]= size(clauSample);
+    [mida, ~]= size(clauSample);
     error = 0;
     confusion_matrix = zeros(mida);
     for lletra_sample = 1:mida

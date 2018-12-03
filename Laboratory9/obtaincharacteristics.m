@@ -1,6 +1,6 @@
 function [ carac ] = obtaincharacteristics( I )
+    % Cridem a regionprops per aconseguir algunes propietats basiques
     Properties = regionprops(I, 'Perimeter', 'Area', 'BoundingBox', 'Centroid');
-    %obtaincharacteristics obtains the characteristics of an image
     Perimetre = Properties.Perimeter;
     BoundingBoxLletra = Properties.BoundingBox; 
     Width = BoundingBoxLletra(3);
@@ -12,8 +12,6 @@ function [ carac ] = obtaincharacteristics( I )
     car_num_forats = CC.NumObjects -1; 
     %Rectangularitat
     car_rectangularitat = Area/(Width*Heigth);
-    %Poligon mes llarg en relacio al perimetre
-    %Angle del poligon mes llarg
     % simplified polygonal boundary of a BW image
     CC = bwconncomp(I);
     idxlists = CC.PixelIdxList;
@@ -23,7 +21,7 @@ function [ carac ] = obtaincharacteristics( I )
     k = boundary([F,C],0.90); % loose factor = 0.15 
     % reduce polygonal
     [RF,RC] = reducem(F(k),C(k),5); % tolerance = 5 degrees
-    [quantitat_poligons, aux] = size(RF);
+    [quantitat_poligons, ~] = size(RF);
     poligon_mes_llarg = 0;
     angle_poligon_llarg =0;
     for x = 1:quantitat_poligons-1
@@ -34,7 +32,9 @@ function [ carac ] = obtaincharacteristics( I )
             angle_poligon_llarg = sin(base/sqrt(dist));
         end
     end
+    %Poligon mes llarg en relacio al perimetre
     car_largest_pol = poligon_mes_llarg / Perimetre;
+    %Angle del poligon mes llarg
     car_angle_largest_pol = angle_poligon_llarg;
     %Aspect ratio de la BB
     car_aspect_BB = Width / Heigth;
