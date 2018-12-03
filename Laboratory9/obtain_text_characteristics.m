@@ -2,7 +2,7 @@ function [ caracteristiques ] = obtain_text_characteristics( I )
     % Binaritzem imatge
     I = I<180;
     % Cridem a region props per obtenir les imatges de les lletres
-    LlistaLletres = regionprops(I, 'Perimeter', 'Area', 'BoundingBox', 'Centroid');
+    LlistaLletres = regionprops(I, 'BoundingBox');
     % Caracteristiques es una matriu 
     caracteristiques = [];
     for i = 1:30 % per cada lletra fem:
@@ -13,7 +13,7 @@ function [ caracteristiques ] = obtain_text_characteristics( I )
         %obtenim la imatge de la lletra
         Illetra = imcrop(I, BoundingBoxLletra);
         %calculem les caracteristiques d'aquesta
-        carac = obtaincharacteristics(Illetra, LlistaLletres(i));
+        carac = obtaincharacteristics(Illetra);
         %afegim el valor a la variable de retorn
         caracteristiques = [caracteristiques; carac];
     end

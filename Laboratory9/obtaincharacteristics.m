@@ -1,4 +1,5 @@
-function [ carac ] = obtaincharacteristics( I, Properties )
+function [ carac ] = obtaincharacteristics( I )
+    Properties = regionprops(I, 'Perimeter', 'Area', 'BoundingBox', 'Centroid');
     %obtaincharacteristics obtains the characteristics of an image
     Perimetre = Properties.Perimeter;
     BoundingBoxLletra = Properties.BoundingBox; 
@@ -42,7 +43,7 @@ function [ carac ] = obtaincharacteristics( I, Properties )
     %Centroide x
     car_centroide_x = Properties.Centroid(1)/Width;   
     %Centroide y
-    car_centroide_y = Properties.Centroid(2)/Heigth    
+    car_centroide_y = Properties.Centroid(2)/Heigth;    
     %Obtenim el resultat
     carac = [car_num_forats car_rectangularitat car_largest_pol car_angle_largest_pol car_aspect_BB car_compacitat car_centroide_x car_centroide_y];
 end
