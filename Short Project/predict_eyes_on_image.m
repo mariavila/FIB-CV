@@ -103,14 +103,24 @@ for i = 1 : (width - mida_imatge_crop)
     for j = 1 : (height - mida_imatge_crop)
         rect = [i, j, mida_imatge_crop, mida_imatge_crop];
         I_window = imcrop(I_test, rect);
+        %I_window = imresize(I_window, [mida_imatge_crop, mida_imatge_crop]);
         vector_caract_test = zeros(1, N);
         %Extract HOG feature
         feature_vector_test = extractHOGFeatures(I_window,'CellSize', CellSize);
         vector_caract_test(1, :) = feature_vector_test;
-        if predict(predictor,vector_caract_test)
-            J() = ones(2,2);
+        if predict(predictor,feature_vector_test)
+            J(i-1+(64/2):i+(64/2), j-1+(64/2):j+(64/2)) = ones(2);
         end
     end
 end
+
+%Obtenim els punts centrals de cada conjunt
+CC = bwconncomp(J);
+S = regionprops(CC, 'centroid');
+cent = cat(1, S.Centroid);
+% afegim un marker vermell al centroide de l'objecte
+If = insertMarker(uint8(I_test), cent, 'x', 'color', 'green', 'size', 10);
+%visualitzar la imatge
+imshow(If, []);
 
 
