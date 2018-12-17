@@ -20,7 +20,7 @@ N = prod([BlocksPerImage, BlockSize, NumBins]);
 matrix_caract_eye = zeros(number_files(1)*22, N);
 vector_labels_eye = zeros(number_files(1)*22, 1);
 
-number_files = 10
+%number_files = 10
 % Obrim imatges i posicions de eyes i generem les caracteristiques
 for i = 1:number_files 
     filename = horzcat(dir_eyes(i).folder,'/',dir_eyes(i).name);
@@ -94,7 +94,7 @@ predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 %Open dialog box and select and image from it
 [filename,filepath]=uigetfile({'*'},'Select and image');
 %Set the value of the text field edit1 to the route of the selected image.
-I_test = imread(strcat(filepath, filename));
+I_test = rgb2gray(imread(strcat(filepath, filename)));
 
 % Fem una finestra lliscant sobre la imatge
 [width, height] = size(I_test);
@@ -110,8 +110,10 @@ for i = 1 : (width - mida_imatge_crop)
         vector_caract_test(1, :) = feature_vector_test;
         if predict(predictor,feature_vector_test)
             J(i-1+(64/2):i+(64/2), j-1+(64/2):j+(64/2)) = ones(2);
+
         end
     end
+    i
 end
 
 %Obtenim els punts centrals de cada conjunt
