@@ -1,7 +1,7 @@
 % CLASSIFICADOR DE ULLS, NO ULLS
 %-----------------------------------
 % Per cada imatge preprocesem i extraiem les caracteristiques HOG:
-% Genarem també 20 caract de imatges no ulls per cada imatge (x y random)
+% Genarem tambÃ© 20 caract de imatges no ulls per cada imatge (x y random)
 % Jugar amb la finestra de l'ull a tractar
 clear;
 close all
@@ -85,7 +85,7 @@ for i = 1:number_files
     
 end
 %-----------------------------------
-% Amb la matriu de característiques alimentem el predictor
+% Amb la matriu de caracterÃ­stiques alimentem el predictor
 % predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 
 
@@ -101,7 +101,7 @@ for i = 1:10
     predictor = fitcsvm(matrix_caract_eye(train,:),vector_labels_eye(train,:));
     labels_predicted = predict(predictor,matrix_caract_eye(test,:));
     errors = abs(vector_labels_eye(test,:) - labels_predicted);
-    [test_size, ~] = size(test);
+    test_size = sum(test);
     error = error + sum(errors)/test_size;
     i
     sum(errors)/test_size
