@@ -101,7 +101,7 @@ for i = 1:10
     predictor = fitcsvm(matrix_caract_eye(train,:),vector_labels_eye(train,:));
     labels_predicted = predict(predictor,matrix_caract_eye(test,:));
     errors = abs(vector_labels_eye(test,:) - labels_predicted);
-    [test_size, ~] = size(test);
+    test_size = sum(test);
     error = error + sum(errors)/test_size;
     i
     sum(errors)/test_size
