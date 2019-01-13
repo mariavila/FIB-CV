@@ -3,21 +3,40 @@
 clear;
 close all
 
+% select features to use:
+USE_HOG = 1;
+USE_HIST = 0;
+USE_LBP = 0;
+USE_SURF = 0;
+USE_HAAR = 0;
+
 dir_eyes = dir('./Samples/*.eye');
 dir_images = dir('./Samples/*.pgm');
 number_files = size(dir_eyes);
+number_files = 1000
+size_rect_x = 1.5;
+size_rect_y = 0.60;
+mida_imatge_crop_x = 64;
+mida_imatge_crop_y = fix(mida_imatge_crop_x *size_rect_x/size_rect_y);
 % Declarem les matrius a zeros per omplirles
-mida_imatge_crop = 64;
 CellSize = [8, 8]; %el profe fa de 8
 BlockSize = [2, 2];
 NumBins = 9;
 BlockOverlap = ceil(BlockSize/2);
-BlocksPerImage = floor(([mida_imatge_crop, mida_imatge_crop]./CellSize - BlockSize)./(BlockSize - BlockOverlap) + 1);
-N = prod([BlocksPerImage, BlockSize, NumBins]);
-matrix_caract_eye = zeros(number_files(1)*22, N);
-vector_labels_eye = zeros(number_files(1)*22, 1);
+%comprovar que sigui aixi i no al reves (mida_imatge_crop_x i mida_imatge_crop_y) 
+BlocksPerImage = floor(([mida_imatge_crop_x, mida_imatge_crop_y]./CellSize - BlockSize)./(BlockSize - BlockOverlap) + 1);
+N_hog = prod([BlocksPerImage, BlockSize, NumBins]);
 
-%number_files = 10
+N_hog = N_hog * USE_HOG;
+N_haar = 160 * USE_HAAR;
+N_hist = 255 * USE_HIST;
+N_lbp = 59 * USE_LBP;
+N_surf = 128 * USE_SURF;
+N = N_hog + N_hist + N_lbp + N_surf + N_haar;
+matrix_caract_eye = zeros(number_files(1)*20, N);
+vector_labels_eye = zeros(number_files(1)*20, 1);
+
+
 % Obrim imatges i posicions de eyes i generem les caracteristiques
 for i = 1:number_files 
     filename = horzcat(dir_eyes(i).folder,'/',dir_eyes(i).name);
@@ -33,51 +52,125 @@ for i = 1:number_files
     I = imtophat(I, strel('disk', 50));
     % Mida del rectangle de crop
     distancia_entre_ulls = lx - rx;
-    size_rect_x = 0.50;
-    size_rect_y = 0.50;
-    size_rect_x = fix(distancia_entre_ulls)*size_rect_x;
-    size_rect_y = fix(distancia_entre_ulls)*size_rect_y;
+    size_rect_x_aux = fix(distancia_entre_ulls)*size_rect_x;
+    size_rect_y_aux = fix(distancia_entre_ulls)*size_rect_y;
     
-    % Fem crop de ull esquerre i obtenim carac
-    rect = [lx - fix(size_rect_x/2), ly - fix(size_rect_y/2), size_rect_x, size_rect_y];
-    I_left = imcrop(I, rect);
-    I_left = imresize(I_left, [mida_imatge_crop, mida_imatge_crop]); 
-    % Fem crop de ull dret i obtenim carac
-    rect = [rx - fix(size_rect_x/2), ry - fix(size_rect_y/2), size_rect_x, size_rect_y];
-    I_right = imcrop(I, rect);
-    I_right = imresize(I_right, [mida_imatge_crop, mida_imatge_crop]); 
-
-    
+    % Fem crop dels ulls
+    rect = [(lx+rx)/2 - fix(size_rect_x_aux/2), (ly+ry)/2 - fix(size_rect_y_aux/2)-0.1*distancia_entre_ulls, size_rect_x_aux, size_rect_y_aux];
+    I_crop = imcrop(I, rect);
+    I_crop = imresize(I_crop, [mida_imatge_crop_x, mida_imatge_crop_y]);
     % Obtenim les caracteristiques HOG i les afegim a la matriu de
     % caracteristiques
     %IMPORTANT: totes les imatges han de tenir la mateixa mida, sino donara
     %un HOG lenght diferent
-    feature_vector_right = extractHOGFeatures(I_right,'CellSize', CellSize);
-    matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_right;
-    vector_labels_eye((i-1)*22 + 1) = 1;
     
-    feature_vector_left = extractHOGFeatures(I_left,'CellSize', CellSize);
-    matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_left;
-    vector_labels_eye((i-1)*22 + 2) = 1;    
+    %CARACTERISTICA 1: HOG
+    if USE_HOG
+        feature_vector_hog = extractHOGFeatures(I_crop,'CellSize', CellSize);
+        matrix_caract_eye((i-1)*20 + 1,1:N_hog) = feature_vector_hog;
+    end
+    
+    %CARACTERISTICA 2: Histograma normalitzat
+    if USE_HIST
+        feature_vector_hist = my_imhist(I_crop, N_hist);
+        matrix_caract_eye((i-1)*20 + 1,(N_hog+1):(N_hog+N_hist)) = feature_vector_hist;
+    end
+    
+    %CARACTERISTICA 3:  local binary pattern
+    if USE_LBP
+        feature_vector_LBP = extractLBPFeatures(I_crop);
+        matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
+    end
+    
+    %CARACTERISTICA 4: SURFpoints
+    if USE_SURF
+        points = detectSURFFeatures(I_crop);
+        if points.Count < 2
+                points = detectSURFFeatures(I_crop, 'MetricThreshold', 1);
+        end
+        if points.Count >= 2
+            [feature_vector_SURF, ~]= extractFeatures(I_crop, points.selectStrongest(2));
+            feature_vector_SURF = reshape(feature_vector_SURF.', 1, []);
+            matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+N_lbp+1):(N_hog+N_hist+N_lbp+N_surf)) = feature_vector_SURF;
+        end
+    end
+    
+    %CARACTERISTICA 5: HAAR WAVELET
+    if USE_HAAR
+        level = 4; % level of the MRA
+        [C, S] = wavedec2(I_crop, level, 'haar');
+        Aproximation_coefs = appcoef2(C,S,'haar');
+        Detail_coefs = detcoef2('compact',C,S,level); 
+        feature_vector_haar = [reshape(Aproximation_coefs.', 1, []), Detail_coefs];
+        matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+N_lbp+N_surf+1):(N_hog+N_hist+N_lbp+N_surf+N_haar)) = feature_vector_haar;
+    end
+    
+    
+    %Posem etiqueta de ULL
+    vector_labels_eye((i-1)*20 + 1) = 1;
+       
 
-    % Fem crop de 20 random x y i obtenim carac:
+    % Fem crop de 19 random x y i obtenim carac:
     [I_size_y, I_size_x] = size(I);
-    for j = 1:20
+
+    for j = 1:19
         % Generem x random entre size_rect_x/2+1 i size_x - size_rect_x/2 -1
-        x_rand = randi([fix(size_rect_x/2), I_size_x - fix(size_rect_x/2)]);
+        x_rand = randi([mida_imatge_crop_x/2, I_size_x - fix(mida_imatge_crop_x/2)]);
         % Generem y random entre size_rect_y/2+1 i size_y - size_rect_y/2 -1
-        y_rand = randi([fix(size_rect_y/2), I_size_y - fix(size_rect_y/2)]);
-        rect = [x_rand - size_rect_x/2, y_rand - size_rect_y/2, size_rect_x, size_rect_y];
+        y_rand = randi([mida_imatge_crop_y/2, I_size_y - fix(mida_imatge_crop_y/2)]);
+        rect = [x_rand - fix(size_rect_x_aux/2), y_rand - fix(size_rect_y_aux/2)-0.1*distancia_entre_ulls, size_rect_x_aux, size_rect_y_aux];
         I_rand = imcrop(I, rect);
-        I_rand = imresize(I_rand, [mida_imatge_crop, mida_imatge_crop]); 
-        
+        I_rand = imresize(I_rand, [mida_imatge_crop_x, mida_imatge_crop_y]); 
         % Obtenim les caracteristiques HOG i les afegim a la matriu de
         % caracteristiques
-        feature_vector_random = extractHOGFeatures(I_rand,'CellSize', CellSize);
-        matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_random;
-        vector_labels_eye((i-1)*22 + j + 2) = 0;
+        
+        %CARACTERISTICA 1: HOG
+        if USE_HOG
+            feature_vector_hog_random = extractHOGFeatures(I_rand,'CellSize', CellSize);
+            matrix_caract_eye((i-1)*20 + j + 1, 1:N_hog) = feature_vector_hog_random;
+        end
+        
+        %CARACTERISTICA 2: Histograma normalitzat
+        if USE_HIST
+            feature_vector_hist = my_imhist(I_rand, N_hist);
+            matrix_caract_eye((i-1)*20 + j + 1,(N_hog+1):(N_hog+N_hist)) = feature_vector_hist;
+        end
+
+        %CARACTERISTICA 3:  local binary pattern
+        if USE_LBP
+            feature_vector_LBP = extractLBPFeatures(I_rand);
+            matrix_caract_eye((i-1)*20 + j + 1,(N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
+        end
+        
+        %CARACTERISTICA 4: SURFpoints
+        if USE_SURF
+            points = detectSURFFeatures(I_rand, 'MetricThreshold', 1000);
+            if points.Count < 2
+                points = detectSURFFeatures(I_rand, 'MetricThreshold', 0);
+            end
+            if points.Count >= 2
+                [feature_vector_SURF, ~]= extractFeatures(I_crop, points.selectStrongest(2));
+                feature_vector_SURF = reshape(feature_vector_SURF.', 1, []);
+                matrix_caract_eye((i-1)*20 + j + 1,(N_hog+N_hist+N_lbp+1):(N_hog+N_hist+N_lbp+N_surf)) = feature_vector_SURF;
+            end
+        end
+        
+        
+        %CARACTERISTICA 5: HAAR WAVELET
+        if USE_HAAR
+            level = 4; % level of the MRA
+            [C, S] = wavedec2(I_rand, level, 'haar');
+            Aproximation_coefs = appcoef2(C,S,'haar');
+            Detail_coefs = detcoef2('compact',C,S,level); % maybe es una matriu??!!
+            feature_vector_haar = [reshape(Aproximation_coefs.', 1, []), Detail_coefs];
+            matrix_caract_eye((i-1)*20 + j + 1,(N_hog+N_hist+N_lbp+N_surf+1):(N_hog+N_hist+N_lbp+N_surf+N_haar)) = feature_vector_haar;
+        end
+        
+        %Posem etiqueta de NO ULL
+        vector_labels_eye((i-1)*20 + j + 1) = 0;
         
     end
+    
 
     
 end
@@ -91,34 +184,82 @@ predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 %Open dialog box and select and image from it
 [filename,filepath]=uigetfile({'*'},'Select and image');
 %Set the value of the text field edit1 to the route of the selected image.
-I_test = rgb2gray(imread(strcat(filepath, filename)));
+I_test = imread(strcat(filepath, filename));
+%if I_test es matriu
+%    I_test = rgb2gray(I_test);
+%end
 
 % Fem una finestra lliscant sobre la imatge
-[width, height] = size(I_test);
-J = zeros(size(I_test));
-for i = 1 : (width - mida_imatge_crop)
-    for j = 1 : (height - mida_imatge_crop)
-        rect = [i, j, mida_imatge_crop, mida_imatge_crop];
+[height, width] = size(I_test);
+best_position = [0, 0];
+best_value = -Inf;
+for i = 1 : 25 :(width - mida_imatge_crop_y)
+    for j = 1 : 10 : (height - mida_imatge_crop_x)
+        rect = [i, j, mida_imatge_crop_y-1, mida_imatge_crop_x-1];
         I_window = imcrop(I_test, rect);
+        imshow(I_window);
         %I_window = imresize(I_window, [mida_imatge_crop, mida_imatge_crop]);
         vector_caract_test = zeros(1, N);
-        %Extract HOG feature
-        feature_vector_test = extractHOGFeatures(I_window,'CellSize', CellSize);
-        vector_caract_test(1, :) = feature_vector_test;
-        if predict(predictor,feature_vector_test)
-            J(i-1+(64/2):i+(64/2), j-1+(64/2):j+(64/2)) = ones(2);
-
+        
+        
+        %CARACTERISTICA 1: HOG
+        if USE_HOG
+            feature_vector_hog = extractHOGFeatures(I_window,'CellSize', CellSize);
+            vector_caract_test(1, 1:N_hog) = feature_vector_hog;
         end
+
+        %CARACTERISTICA 2: Histograma normalitzat
+        if USE_HIST
+            feature_vector_hist = my_imhist(I_window, N_hist);
+            vector_caract_test(1, (N_hog+1):(N_hog+N_hist)) = feature_vector_hist;
+        end
+
+
+        %CARACTERISTICA 3:  local binary pattern
+        if USE_LBP
+            feature_vector_LBP = extractLBPFeatures(I_window);
+            vector_caract_test(1, (N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
+        end
+
+        %CARACTERISTICA 4: SURFpoints
+        if USE_SURF
+            points = detectSURFFeatures(I_window);
+            if points.Count < 2
+                    points = detectSURFFeatures(I_window, 'MetricThreshold', 1);
+            end
+            if points.Count >= 2
+                [feature_vector_SURF, ~]= extractFeatures(I_window, points.selectStrongest(2));
+                feature_vector_SURF = reshape(feature_vector_SURF.', 1, []);
+                vector_caract_test(1, (N_hog+N_hist+N_lbp+1):(N_hog+N_hist+N_lbp+N_surf)) = feature_vector_SURF;
+            end
+        end
+
+        %CARACTERISTICA 5: HAAR WAVELET
+        if USE_HAAR
+            level = 4; % level of the MRA
+            [C, S] = wavedec2(I_window, level, 'haar');
+            Aproximation_coefs = appcoef2(C,S,'haar');
+            Detail_coefs = detcoef2('compact',C,S,level);
+            feature_vector_haar = [reshape(Aproximation_coefs.', 1, []), Detail_coefs];
+            vector_caract_test(1, (N_hog+N_hist+N_lbp+N_surf+1):(N_hog+N_hist+N_lbp+N_surf+N_haar)) = feature_vector_haar;
+        end
+        
+        [~, score, ~] = predict(predictor,vector_caract_test);
+        if score(2) > best_value
+            best_value = score(2);
+            best_position = [i, j];
+        end
+        
     end
     i
 end
 
-%Obtenim els punts centrals de cada conjunt
-CC = bwconncomp(J);
-S = regionprops(CC, 'centroid');
-cent = cat(1, S.Centroid);
-% afegim un marker vermell al centroide de l'objecte
-If = insertMarker(uint8(I_test), cent, 'x', 'color', 'green', 'size', 10);
+If = I_test;
+if best_value > 0
+    % afegim un marker vermell al centroide de l'objecte
+    If = insertMarker(uint8(I_test), best_position, 'x', 'color', 'red', 'size', 10);
+    If = insertMarker(uint8(If), (best_position + [mida_imatge_crop_y, mida_imatge_crop_x]), 'x', 'color', 'green', 'size', 10);
+end
 %visualitzar la imatge
 imshow(If, []);
 

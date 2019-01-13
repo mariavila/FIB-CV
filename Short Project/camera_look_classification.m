@@ -23,9 +23,11 @@ BlockOverlap = ceil(BlockSize/2);
 BlocksPerImage = floor(([mida_imatge_crop_x, mida_imatge_crop_y]./CellSize - BlockSize)./(BlockSize - BlockOverlap) + 1);
 N_hog = prod([BlocksPerImage, BlockSize, NumBins]);
 
+N_haar = 160;
 N_hist = 255;
 N_lbp = 59;
-N = N_hog + N_lbp;%+ N_hist; % Number of features
+N_surf = 128;
+N = N_hog + N_hist + N_lbp + N_surf + N_haar;
 matrix_caract_eye = zeros(number_files(1), N); % els dos ulls estan en la mateixa fila
 vector_labels_eye = zeros(number_files(1), 1);
 
@@ -94,9 +96,27 @@ for i = 1:number_files
     
     %CARACTERISTICA 3:  local binary pattern
     feature_vector_LBP = extractLBPFeatures(I_crop);
-    matrix_caract_eye(i,(N_hog+1):(N_hog+N_lbp)) = feature_vector_LBP;
+    matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
     
-    %CARACTERISTICA X
+    %CARACTERISTICA 4: SURFpoints
+    points = detectSURFFeatures(I_crop);
+    if points.Count < 2
+            points = detectSURFFeatures(I_crop, 'MetricThreshold', 1);
+    end
+    if points.Count >= 2
+        [feature_vector_SURF, ~]= extractFeatures(I_crop, points.selectStrongest(2));
+        feature_vector_SURF = reshape(feature_vector_SURF.', 1, []);
+        matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+N_lbp+1):(N_hog+N_hist+N_lbp+N_surf)) = feature_vector_SURF;
+    end
+    
+    %CARACTERISTICA 5: HAAR WAVELET
+    level = 4; % level of the MRA
+    [C, S] = wavedec2(I_crop, level, 'haar');
+    Aproximation_coefs = appcoef2(C,S,'haar');
+    Detail_coefs = detcoef2('compact',C,S,level); % maybe es una matriu??!!
+    feature_vector_haar = [reshape(Aproximation_coefs.', 1, []), Detail_coefs];
+    matrix_caract_eye((i-1)*20 + 1,(N_hog+N_hist+N_lbp+N_surf+1):(N_hog+N_hist+N_lbp+N_surf+N_haar)) = feature_vector_haar;
+
     %Omplim el vector d'etiquetes
     vector_labels_eye(i) = matrix_mira(i, 5);
 
