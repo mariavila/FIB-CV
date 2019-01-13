@@ -1,8 +1,5 @@
 % CLASSIFICADOR DE ULLS, NO ULLS
 %-----------------------------------
-% Per cada imatge preprocesem i extraiem les caracteristiques HOG:
-% Genarem també 20 caract de imatges no ulls per cada imatge (x y random)
-% Jugar amb la finestra de l'ull a tractar
 clear;
 close all
 
@@ -85,7 +82,7 @@ for i = 1:number_files
     
 end
 %-----------------------------------
-% Amb la matriu de característiques alimentem el predictor
+% Amb la matriu de caracter?stiques alimentem el predictor
 predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 
 
@@ -124,5 +121,4 @@ cent = cat(1, S.Centroid);
 If = insertMarker(uint8(I_test), cent, 'x', 'color', 'green', 'size', 10);
 %visualitzar la imatge
 imshow(If, []);
-
 

@@ -1,7 +1,7 @@
 % CLASSIFICADOR DE ULLS, NO ULLS
 %-----------------------------------
 % Per cada imatge preprocesem i extraiem les caracteristiques HOG:
-% Genarem tambÃ© 20 caract de imatges no ulls per cada imatge (x y random)
+% Genarem també 20 caract de imatges no ulls per cada imatge (x y random)
 % Jugar amb la finestra de l'ull a tractar
 clear;
 close all
@@ -9,18 +9,27 @@ close all
 dir_eyes = dir('./Samples/*.eye');
 dir_images = dir('./Samples/*.pgm');
 number_files = size(dir_eyes);
+number_files = 5
+size_rect_x = 1.5;
+size_rect_y = 0.60;
+mida_imatge_crop_x = 64;
+mida_imatge_crop_y = fix(mida_imatge_crop_x *size_rect_x/size_rect_y);
 % Declarem les matrius a zeros per omplirles
-mida_imatge_crop = 64;
 CellSize = [8, 8]; %el profe fa de 8
 BlockSize = [2, 2];
 NumBins = 9;
 BlockOverlap = ceil(BlockSize/2);
-BlocksPerImage = floor(([mida_imatge_crop, mida_imatge_crop]./CellSize - BlockSize)./(BlockSize - BlockOverlap) + 1);
-N = prod([BlocksPerImage, BlockSize, NumBins]);
-matrix_caract_eye = zeros(number_files(1)*22, N);
-vector_labels_eye = zeros(number_files(1)*22, 1);
+%comprovar que sigui aixi i no al reves (mida_imatge_crop_x i mida_imatge_crop_y) 
+BlocksPerImage = floor(([mida_imatge_crop_x, mida_imatge_crop_y]./CellSize - BlockSize)./(BlockSize - BlockOverlap) + 1);
+N_hog = prod([BlocksPerImage, BlockSize, NumBins]);
 
-number_files = 1000
+N_hist = 255;
+N_lbp = 59;
+N = N_hog + N_hist + N_lbp;
+matrix_caract_eye = zeros(number_files(1)*20, N);
+vector_labels_eye = zeros(number_files(1)*20, 1);
+
+
 % Obrim imatges i posicions de eyes i generem les caracteristiques
 for i = 1:number_files 
     filename = horzcat(dir_eyes(i).folder,'/',dir_eyes(i).name);
@@ -36,74 +45,92 @@ for i = 1:number_files
     I = imtophat(I, strel('disk', 50));
     % Mida del rectangle de crop
     distancia_entre_ulls = lx - rx;
-    size_rect_x = 0.50;
-    size_rect_y = 0.50;
-    size_rect_x = fix(distancia_entre_ulls)*size_rect_x;
-    size_rect_y = fix(distancia_entre_ulls)*size_rect_y;
+    size_rect_x_aux = fix(distancia_entre_ulls)*size_rect_x;
+    size_rect_y_aux = fix(distancia_entre_ulls)*size_rect_y;
     
-    % Fem crop de ull esquerre i obtenim carac
-    rect = [lx - fix(size_rect_x/2), ly - fix(size_rect_y/2), size_rect_x, size_rect_y];
-    I_left = imcrop(I, rect);
-    I_left = imresize(I_left, [mida_imatge_crop, mida_imatge_crop]); 
-    % Fem crop de ull dret i obtenim carac
-    rect = [rx - fix(size_rect_x/2), ry - fix(size_rect_y/2), size_rect_x, size_rect_y];
-    I_right = imcrop(I, rect);
-    I_right = imresize(I_right, [mida_imatge_crop, mida_imatge_crop]); 
-
+    % Fem crop dels ulls
+    rect = [(lx+rx)/2 - fix(size_rect_x_aux/2), (ly+ry)/2 - fix(size_rect_y_aux/2)-0.1*distancia_entre_ulls, size_rect_x_aux, size_rect_y_aux];
+    I_crop = imcrop(I, rect);
+    I_crop = imresize(I_crop, [mida_imatge_crop_x, mida_imatge_crop_y]); 
     
     % Obtenim les caracteristiques HOG i les afegim a la matriu de
     % caracteristiques
     %IMPORTANT: totes les imatges han de tenir la mateixa mida, sino donara
     %un HOG lenght diferent
-    feature_vector_right = extractHOGFeatures(I_right,'CellSize', CellSize);
-    matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_right;
-    vector_labels_eye((i-1)*22 + 1) = 1;
     
-    feature_vector_left = extractHOGFeatures(I_left,'CellSize', CellSize);
-    matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_left;
-    vector_labels_eye((i-1)*22 + 2) = 1;    
+    %CARACTERISTICA 1: HOG
+    feature_vector_hog = extractHOGFeatures(I_crop,'CellSize', CellSize);
+    matrix_caract_eye(i,1:N_hog) = feature_vector_hog;
+    
+    %CARACTERISTICA 2: Histograma normalitzat
+    feature_vector_hist = my_imhist(I_crop, N_hist);
+    matrix_caract_eye(i,(N_hog+1):(N_hog+N_hist)) = feature_vector_hist;
 
-    % Fem crop de 20 random x y i obtenim carac:
+    
+    %CARACTERISTICA 3:  local binary pattern
+    feature_vector_LBP = extractLBPFeatures(I_crop);
+    matrix_caract_eye(i,(N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
+    
+    %Posem etiqueta de ULL
+    vector_labels_eye((i-1)*20 + 1) = 1;
+       
+
+    % Fem crop de 19 random x y i obtenim carac:
     [I_size_y, I_size_x] = size(I);
-    for j = 1:20
+
+    for j = 1:19
         % Generem x random entre size_rect_x/2+1 i size_x - size_rect_x/2 -1
-        x_rand = randi([fix(size_rect_x/2), I_size_x - fix(size_rect_x/2)]);
+        x_rand = randi([mida_imatge_crop_x/2, I_size_x - fix(mida_imatge_crop_x/2)]);
         % Generem y random entre size_rect_y/2+1 i size_y - size_rect_y/2 -1
-        y_rand = randi([fix(size_rect_y/2), I_size_y - fix(size_rect_y/2)]);
-        rect = [x_rand - size_rect_x/2, y_rand - size_rect_y/2, size_rect_x, size_rect_y];
+        y_rand = randi([mida_imatge_crop_y/2, I_size_y - fix(mida_imatge_crop_y/2)]);
+        rect = [x_rand - fix(size_rect_x_aux/2), y_rand - fix(size_rect_y_aux/2)-0.1*distancia_entre_ulls, size_rect_x_aux, size_rect_y_aux];
         I_rand = imcrop(I, rect);
-        I_rand = imresize(I_rand, [mida_imatge_crop, mida_imatge_crop]); 
-        
+        I_rand = imresize(I_rand, [mida_imatge_crop_x, mida_imatge_crop_y]); 
         % Obtenim les caracteristiques HOG i les afegim a la matriu de
         % caracteristiques
-        feature_vector_random = extractHOGFeatures(I_rand,'CellSize', CellSize);
-        matrix_caract_eye((i-1)*22 + 2, :) = feature_vector_random;
-        vector_labels_eye((i-1)*22 + j + 2) = 0;
+        
+        %CARACTERISTICA 1: HOG
+        feature_vector_hog_random = extractHOGFeatures(I_rand,'CellSize', CellSize);
+        matrix_caract_eye((i-1)*20 + j + 1, 1:N_hog) = feature_vector_hog_random;
+        
+        %CARACTERISTICA 2: Histograma normalitzat
+        feature_vector_hist = my_imhist(I_crop, N_hist);
+        matrix_caract_eye((i-1)*20 + j + 1,(N_hog+1):(N_hog+N_hist)) = feature_vector_hist;
+
+        %CARACTERISTICA 3:  local binary pattern
+        feature_vector_LBP = extractLBPFeatures(I_crop);
+        matrix_caract_eye((i-1)*20 + j + 1,(N_hog+N_hist+1):(N_hog+N_hist+N_lbp)) = feature_vector_LBP;
+    
+        %Posem etiqueta de NO ULL
+        vector_labels_eye((i-1)*20 + j + 1) = 0;
         
     end
+    
 
     
 end
 %-----------------------------------
-% Amb la matriu de caracterÃ­stiques alimentem el predictor
+% Amb la matriu de característiques alimentem el predictor
 % predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 
 
 %-----------------------------------
 % Evaluem el predictor amb cross-validation 1x10
-indices = crossvalind('Kfold',vector_labels_eye,10);
+N_cv = 5;
+indices = crossvalind('Kfold',vector_labels_eye,N_cv);
 cp = classperf(vector_labels_eye);
 error = 0;
-for i = 1:10
+for i = 1:N_cv
     test = (indices == i); 
     train = ~test;
     % class = classify(matrix_caract_eye(test,:),matrix_caract_eye(train,:),vector_labels_eye(train,:), 'diaglinear');
     predictor = fitcsvm(matrix_caract_eye(train,:),vector_labels_eye(train,:));
     labels_predicted = predict(predictor,matrix_caract_eye(test,:));
     errors = abs(vector_labels_eye(test,:) - labels_predicted);
-    test_size = sum(test);
-    error = error + sum(errors)/test_size;
+    error = error + sum(errors)/sum(test);
     i
-    sum(errors)/test_size
+    sum(errors)/sum(test)
 end
-error = error / 10;
+error = error / N_cv;
+percentate_acert = 100 - (error)*100
+
