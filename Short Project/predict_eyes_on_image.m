@@ -185,9 +185,10 @@ predictor = fitcsvm(matrix_caract_eye,vector_labels_eye);
 [filename,filepath]=uigetfile({'*'},'Select and image');
 %Set the value of the text field edit1 to the route of the selected image.
 I_test = imread(strcat(filepath, filename));
-%if I_test es matriu
-%    I_test = rgb2gray(I_test);
-%end
+[~, ~, z] = size(I_test);
+if z == 3
+    I_test = rgb2gray(I_test);
+end
 
 % Fem una finestra lliscant sobre la imatge
 [height, width] = size(I_test);
