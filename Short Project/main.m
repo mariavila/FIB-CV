@@ -8,10 +8,10 @@ close all
 
 % select features to use:
 USE_HOG = 1;
-USE_HIST = 0;
-USE_LBP = 0;
-USE_SURF = 0;
-USE_HAAR = 0;
+USE_HIST = 1;
+USE_LBP = 1;
+USE_SURF = 1;
+USE_HAAR = 1;
 
 dir_eyes = dir('./Samples/*.eye');
 dir_images = dir('./Samples/*.pgm');
@@ -41,7 +41,7 @@ vector_labels_eye = zeros(number_files(1)*20, 1);
 
 
 % Obrim imatges i posicions de eyes i generem les caracteristiques
-for i = 1:number_files 
+for i = 5:number_files 
     filename = horzcat(dir_eyes(i).folder,'/',dir_eyes(i).name);
     fid = fopen(filename);
     s = textscan(fid, '%s', 1, 'delimiter', '\n');
@@ -62,7 +62,6 @@ for i = 1:number_files
     rect = [(lx+rx)/2 - fix(size_rect_x_aux/2), (ly+ry)/2 - fix(size_rect_y_aux/2)-0.1*distancia_entre_ulls, size_rect_x_aux, size_rect_y_aux];
     I_crop = imcrop(I, rect);
     I_crop = imresize(I_crop, [mida_imatge_crop_x, mida_imatge_crop_y]); 
-    imshow(I_crop);
     % Obtenim les caracteristiques HOG i les afegim a la matriu de
     % caracteristiques
     %IMPORTANT: totes les imatges han de tenir la mateixa mida, sino donara
@@ -184,22 +183,28 @@ end
 
 
 %-----------------------------------
-% Evaluem el predictor amb cross-validation 1x10
-N_cv = 5;
+% Evaluem el predictor amb cross-validation 1x5
+N_cv = 5; %Nombre de Cross Validation
 indices = crossvalind('Kfold',vector_labels_eye,N_cv);
-cp = classperf(vector_labels_eye);
 error = 0;
+
+conf_matrix = zeros(2);
+
 for i = 1:N_cv
+    % agafem indexs de test i training
     test = (indices == i); 
     train = ~test;
-    % class = classify(matrix_caract_eye(test,:),matrix_caract_eye(train,:),vector_labels_eye(train,:), 'diaglinear');
+    % alimentem el model SVM
     predictor = fitcsvm(matrix_caract_eye(train,:),vector_labels_eye(train,:));
+    % predim el model
     labels_predicted = predict(predictor,matrix_caract_eye(test,:));
+    conf_matrix = conf_matrix + confusionmat(vector_labels_eye(test,:), labels_predicted);
     errors = abs(vector_labels_eye(test,:) - labels_predicted);
     error = error + sum(errors)/sum(test);
     i
     sum(errors)/sum(test)
 end
+conf_matrix
 error = error / N_cv;
 percentate_acert = 100 - (error)*100
 
